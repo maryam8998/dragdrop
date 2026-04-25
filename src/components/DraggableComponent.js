@@ -1,7 +1,6 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, useCallback } from "react";
 import { useBuilderContext } from "../hooks/useBuilderContext";
 import { componentTypes } from "../utils/componentUtils";
-
 
 export const DraggableComponent = ({ component }) => {
   const { selectComponent, updateComponent } = useBuilderContext();
@@ -24,38 +23,46 @@ export const DraggableComponent = ({ component }) => {
     selectComponent(component.id);
   };
 
-  const handleMouseMove = (e) => {
-    if (!isDragging) return;
-
-    updateComponent(component.id, {
-      x: e.clientX - dragStart.x,
-      y: e.clientY - dragStart.y,
-    });
-  };
-
-  const handleMouseUp = () => {
+  const handleMouseUp = useCallback(() => {
     setIsDragging(false);
-  };
+  }, []);
+
+  // ✅ DRAG MOVE (FIXED)
+  const handleMouseMove = useCallback(
+    (e) => {
+      if (!isDragging) return;
+
+      updateComponent(component.id, {
+        x: e.clientX - dragStart.x,
+        y: e.clientY - dragStart.y,
+      });
+    },
+    [isDragging, dragStart, component.id, updateComponent]
+  );
 
   const handleResizeStart = (e) => {
     e.preventDefault();
     setIsResizing(true);
   };
 
-  const handleResizeMove = (e) => {
-    if (!isResizing || !componentRef.current) return;
-
-    const rect = componentRef.current.parentElement.getBoundingClientRect();
-
-    updateComponent(component.id, {
-      width: Math.max(50, e.clientX - rect.left - component.x),
-      height: Math.max(50, e.clientY - rect.top - component.y),
-    });
-  };
-
-  const handleResizeEnd = () => {
+  const handleResizeEnd = useCallback(() => {
     setIsResizing(false);
-  };
+  }, []);
+
+  // ✅ RESIZE MOVE (FIXED)
+  const handleResizeMove = useCallback(
+    (e) => {
+      if (!isResizing || !componentRef.current) return;
+
+      const rect = componentRef.current.parentElement.getBoundingClientRect();
+
+      updateComponent(component.id, {
+        width: Math.max(50, e.clientX - rect.left - component.x),
+        height: Math.max(50, e.clientY - rect.top - component.y),
+      });
+    },
+    [isResizing, component.id, component.x, component.y, updateComponent]
+  );
 
   // Drag effect
   useEffect(() => {
@@ -68,7 +75,7 @@ export const DraggableComponent = ({ component }) => {
         document.removeEventListener("mouseup", handleMouseUp);
       };
     }
-  }, [isDragging, dragStart]);
+  }, [isDragging, handleMouseMove, handleMouseUp]);
 
   // Resize effect
   useEffect(() => {
@@ -81,7 +88,7 @@ export const DraggableComponent = ({ component }) => {
         document.removeEventListener("mouseup", handleResizeEnd);
       };
     }
-  }, [isResizing]);
+  }, [isResizing, handleResizeMove, handleResizeEnd]);
 
   const renderContent = () => {
     switch (component.type) {
